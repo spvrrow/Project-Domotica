@@ -21,8 +21,8 @@ int main(void)
 	DDRB |= _BV(DDB0);
 	DDRB |= _BV(DDB1);
 	DDRB |= _BV(DDB2);
-	DDRD &= _BV(DDD7);
-	DDRD &= _BV(DDD6);
+	DDRD &= _BV(DDD4);
+	DDRD &= _BV(DDD5);
     
     while (1) 
     {
