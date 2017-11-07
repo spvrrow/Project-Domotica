@@ -20,18 +20,18 @@
 // All includes
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#define F_CPU 16E6
 #include <util/delay.h>
 #include <avr/sfr_defs.h>
 #include "distance.h"
 
 //Defines
-#define F_CPU 16E6
 #define UBBRVAL 51
 
 // creation of variables
 volatile uint16_t gv_counter; // 16 bit counter value
 volatile uint8_t gv_echo; // a flag
-char String[]="The distance is: ";
+char String[]=" The distance is: ";
 
 
 // Port initialization
@@ -60,7 +60,7 @@ void init_ext_int(void)
 }
 
 
-// Start of 
+// Start of ultrasonoor sensor code
 uint16_t calc_cm(uint16_t counter)
 {
 	return (gv_counter / 16)/58;
@@ -68,20 +68,11 @@ uint16_t calc_cm(uint16_t counter)
 
 int afstand_meter(void)
 {
-	init_ports();
-	init_timer();
-	init_ext_int();
 	sei();
-	while (1)
-	{
 		gv_echo = BEGIN;
 		PORTD |= _BV(4);
 		_delay_us(12);
 		PORTD = 0x00;
-		_delay_ms(30);
-	}
-	
-	
 }
 
 ISR (INT1_vect)
@@ -138,14 +129,15 @@ unsigned char USART_receive(void){
 
 int serial_conn(void){
 	uart_init();
-	afstand_meter();
 	while (1) {
+		afstand_meter();
 		USART_putstring(String);
+		//convert int to string
 		char buffer[8];
 		int tmp = calc_cm(gv_counter);
 		itoa(tmp, buffer, 10);
 		USART_putstring(buffer);
-		_delay_ms(5000);
+		_delay_ms(3000);
 	}
 	return 0;
 }
@@ -155,7 +147,11 @@ int serial_conn(void){
 int main(void)
 {
 	while(1){
+	init_ports();
+	init_timer();
+	init_ext_int();
 	serial_conn();
+	afstand_meter();
 	}
 	return 0;
 }
