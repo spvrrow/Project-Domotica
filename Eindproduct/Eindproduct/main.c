@@ -17,17 +17,22 @@
 *F_OSC = 16 MHz & baud rate = 19.200
 */
 
+// All includes
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#define F_CPU 16E6
 #include <util/delay.h>
 #include <avr/sfr_defs.h>
 #include "distance.h"
 
+//Defines
+#define F_CPU 16E6
 #define UBBRVAL 51
 
+// creation of variables
 volatile uint16_t gv_counter; // 16 bit counter value
 volatile uint8_t gv_echo; // a flag
+char String[]="The distance is: ";
+
 
 // Port initialization
 void init_ports(void)
@@ -38,9 +43,9 @@ void init_ports(void)
 }
 
 // Initialization of timers
-void init_timer(void)
 // prescaling : max time = 2^16/16E6 = 4.1 ms, 4.1 >> 2.3, so no prescaling required
 // normal mode, no prescale, stop timer
+void init_timer(void)
 {
 	TCCR1A = 0;
 	TCCR1B = 0;
@@ -70,12 +75,10 @@ int afstand_meter(void)
 	while (1)
 	{
 		gv_echo = BEGIN;
-		PORTD |= _BV(0);
+		PORTD |= _BV(4);
 		_delay_us(12);
 		PORTD = 0x00;
 		_delay_ms(30);
-		int tmp = calc_cm(gv_counter);
-		_delay_ms(500);
 	}
 	
 	
@@ -117,7 +120,6 @@ void transmit(uint8_t data)
 	// send the data
 	UDR0 = data;
 }
-char String[]="The distance is:";
 
 void USART_putstring(char* StringPtr){
 	
@@ -136,8 +138,13 @@ unsigned char USART_receive(void){
 
 int serial_conn(void){
 	uart_init();
+	afstand_meter();
 	while (1) {
 		USART_putstring(String);
+		char buffer[8];
+		int tmp = calc_cm(gv_counter);
+		itoa(tmp, buffer, 10);
+		USART_putstring(buffer);
 		_delay_ms(5000);
 	}
 	return 0;
@@ -147,6 +154,8 @@ int serial_conn(void){
 
 int main(void)
 {
+	while(1){
 	serial_conn();
-	afstand_meter();
+	}
+	return 0;
 }
