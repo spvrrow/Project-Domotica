@@ -131,6 +131,9 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="AVR_TTC_scheduler.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="distance.h">
       <SubType>compile</SubType>
     </Compile>

@@ -26,6 +26,7 @@
 #include <util/delay.h>
 #include <avr/sfr_defs.h>
 #include "distance.h"
+#include "AVR_TTC_scheduler.h"
 
 //Defines
 #define UBBRVAL 51
@@ -33,8 +34,8 @@
 // creation of variables
 volatile uint16_t gv_counter; // 16 bit counter value
 volatile uint8_t gv_echo; // a flag
-char String[]=" The distance is: ";
-char String2[]=" cm";
+char String[]="D,";
+//char String2[]=" cm";
 int schermstatus = 0; //huidige status van het scherm (0 = ingerold, 1= uitgerold)
 int afstand = 120; // bovengrens voor het zonnescherm in centimeters
 int i = 0;
@@ -52,8 +53,8 @@ void init_ports(void)
 // Initialization of timers
 void init_timer(void)
 {
-	TCCR1A = 0;
-	TCCR1B = 0;
+	TCCR0A = 0;
+	TCCR0B = 0;
 }
 
 // External interrupts initialization
@@ -68,7 +69,7 @@ void init_ext_int(void)
 // Start of ultrasonoor sensor code
 uint16_t calc_cm(uint16_t counter)
 {
-	return (gv_counter / 2)/58.2;
+	return (gv_counter /2 )/ 7.25;
 }
 
 int afstand_meter()
@@ -84,7 +85,6 @@ int afstand_meter()
 		
 		}
 		else {
-			leds();
 			return 1;
 	
 	}
@@ -96,13 +96,13 @@ ISR (INT1_vect)
 {
 	if(gv_echo == BEGIN)
 	{
-		TCNT1 = 0;
-		TCCR1B |= (1 << CS11);
+		TCNT0 = 0;
+		TCCR0B |= (1 << CS01);
 		gv_echo = END;
 	}
 	else {
-		TCCR1B = 0;
-		gv_counter = TCNT1;
+		TCCR0B = 0;
+		gv_counter = TCNT0;
 	}
 }
 
@@ -154,7 +154,7 @@ int serial_conn(void){
 		int tmp = calc_cm(gv_counter);
 		itoa(tmp, buffer, 10);
 		USART_putstring(buffer);
-		USART_putstring(String2);
+		//USART_putstring(String2);
 		_delay_ms(3000);
 	}
 	return 0;
