@@ -79,12 +79,12 @@ int afstand_meter()
 		_delay_us(12);
 		PORTD = 0x00;
 		int distance = calc_cm(gv_counter);
-	
 		if (distance >= afstand | distance <= 5){
 			return 0;
 		
 		}
 		else {
+			leds();
 			return 1;
 	
 	}
@@ -162,8 +162,8 @@ int serial_conn(void){
 
 
 // Start code voor lampjes
-void knipper(int nummer){
-	while(afstand_meter() != nummer){
+void knipper(){
+	while(1){
 		PORTB |= _BV(1);
 		_delay_ms(200);
 		PORTB &= ~(1 << 1); // set output low
@@ -175,16 +175,16 @@ void leds(){
  if (i == 0){
 	 PORTB |= _BV(2);
 	 PORTB &= ~(1 << 0);
+	 knipper();
 	 if (schermstatus == 1){
-		 knipper(1);
 		 schermstatus = 0;
 	 }
  }
  if(i == 1){
 	 PORTB &= ~(1 << 2);
 	 PORTB |= _BV(0);
+	 knipper();
 	 if (schermstatus == 0){
-		 knipper(0);
 		 schermstatus = 1;
 	 }
  }
@@ -196,7 +196,6 @@ int main(void)
 	init_ports();
 	init_timer();
 	init_ext_int();
-	leds();
 	serial_conn();
 	
 	}
