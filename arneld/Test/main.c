@@ -16,6 +16,9 @@
 
 //Defines
 #define UBBRVAL 51
+int adc_result0 = 0;
+int max_licht = 1200;
+char String[]="Licht: ";
 
 // Start of scheduler code
 // The array of tasks
@@ -246,7 +249,7 @@ ISR(TIMER1_COMPA_vect)
 // Port initialization
 void init_ports(void)
 {
-	//poorten voor uitvoer en invoer van leds en ultrasonor sensor
+	DDRD |= _BV(DDD2);
 }
 
 
@@ -318,23 +321,23 @@ unsigned char USART_receive(void){
 
 // MAIN! functie van serial connectie______
 int serial_conn(void){
-	uart_init();
-	while (1) {
 		USART_putstring(String);
 		
-		
 		//convert int to string
-		char buffer[8];
-		int tmp = get_adc_value();
-		// itoa(integer, char*string, type getal(hex, bin, dec, oct))
-		itoa(tmp, buffer, 10);
-		//buffer is het getal dat laten zien moet worden.
+		adc_result0 = get_adc_value() * 10;
+		char buffer[10];
+		itoa(adc_result0, buffer, 10);
 		USART_putstring(buffer);
-		
-		// Delay
-		_delay_ms(3000);
+		_delay_ms(1000);
+		if (adc_result0 > max_licht){
+			lampjes();
+		}
 	}
-	return 0;
+
+int lampjes(void){
+		PORTD |= _BV(2);
+		_delay_ms(1000);
+		PORTD &= ~(_BV(2));
 }
 
 
@@ -345,11 +348,16 @@ int main() {
 	* bijvoorbeeld init_ports();
 	*
 	*/
+	init_ports();
+	uart_init();
+	init_adc();
+	
+	SCH_Init_T1();
 	
 	// taken uitvoeren en taken die in de scheduler moeten
 	// bijvoorbeeld SCH_Add_Task(sensor_start, 0, 50);
 	
-	
+	SCH_Add_Task(serial_conn(), 0, 50);
 	
 	//start de scheduler
 	SCH_Start();

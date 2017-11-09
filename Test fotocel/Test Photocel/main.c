@@ -12,11 +12,22 @@
 //Defines
 #define UBBRVAL 51
 
+int adc_result0 = 0;
+int max_licht = 1200;
+
+
+void init_ports(){
+	DDRD |= _BV(DDD2);
+	}
+	
 int main(void)
 {
+	init_ports();
 	init_adc();
 	serial_conn();
+
 }
+
 
 void init_adc()
 {
@@ -25,7 +36,8 @@ void init_adc()
 	ADMUX = (1<<REFS0)|(1<<ADLAR);
 	// enable the ADC & prescale = 128
 	ADCSRA = (1<<ADEN)|(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0);
-}
+	}
+	
 uint8_t get_adc_value()
 {
 ADCSRA |= (1<<ADSC); // start conversion
@@ -42,7 +54,7 @@ void uart_init()
 	// disable U2X mode
 	UCSR0A = 0;
 	// enable transmitter
-	UCSR0B = _BV(TXEN0);
+	UCSR0B = _BV(RXEN0) | _BV(TXEN0);
 	// set frame format : asynchronous, 8 data bits, 1 stop bit, no parity
 	UCSR0C = _BV(UCSZ01) | _BV(UCSZ00);
 }
@@ -65,9 +77,14 @@ void USART_putstring(char* StringPtr){
 
 unsigned char USART_receive(void){
 	
-	while(!(UCSR0A & (1<<RXC0)));
+	//while(!(UCSR0A & (1<<RXC0)));
+	loop_until_bit_is_set(UCSR0A, RXC0); /* Wait until data exists. */
 	return UDR0;
 	
+	//char uart_getchar(void) {
+	//	loop_until_bit_is_set(UCSR0A, RXC0); /* Wait until data exists. */
+	//	return UDR0;
+	//}
 }
 
 
@@ -79,12 +96,22 @@ int serial_conn(void){
 		
 		//convert int to string
 		
-		int adc_result0 = get_adc_value() * 10;
+		adc_result0 = get_adc_value() * 10;
 		char buffer[10];
 		itoa(adc_result0, buffer, 10);
 		USART_putstring(buffer);
+		lampjes();
 		_delay_ms(1000);
 	}
 	return 0;
+}
+
+void lampjes(){
+	while(adc_result0 > max_licht){
+		PORTD |= _BV(2);
+		_delay_ms(1000);
+		PORTD &= ~(_BV(2));
+	}
+	
 }
 
