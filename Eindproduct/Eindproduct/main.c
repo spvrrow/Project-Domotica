@@ -32,10 +32,10 @@
 #define UBBRVAL 51
 
 // creation of variables
-volatile uint16_t gv_counter; // 16 bit counter value
+unsigned int gv_counter; // 16 bit counter value
 volatile uint8_t gv_echo; // a flag
 char String[]="D,";
-//char String2[]=" cm";
+char String2[]=" cm";
 int schermstatus = 0; //huidige status van het scherm (0 = ingerold, 1= uitgerold)
 int afstand = 120; // bovengrens voor het zonnescherm in centimeters
 int i = 0;
@@ -51,26 +51,23 @@ void init_ports(void)
 }
 
 // Initialization of timers
-void init_timer(void)
-{
+void init_distance() {
+	EICRA |= (1 << ISC10);
+	EIMSK |= (1 << INT1);
 	TCCR0A = 0;
-	TCCR0B |= (1 << CS01 | (1<< CS00));
+	TCCR0B = (1 << CS01) | (1 << CS00);
 	TIMSK0 = (1 << TOIE0);
-}
-
-// External interrupts initialization
-void init_ext_int(void)
-{
-	// any change triggers ext interrupt 1
-	EICRA = (1 << ISC10);
-	EIMSK = (1 << INT1);
+	DDRD |= (1 << 4);
 }
 
 
-// Start of ultrasonoor sensor code
-uint16_t calc_cm(uint16_t counter)
+
+// Start of ultrasonor sensor code
+// Echo on D3
+// Trig on D4
+unsigned int calc_cm(unsigned int counter)
 {
-	return gv_counter *(64 / 16) / 58.2;
+	return counter * (64 / 16) / 58;
 }
 
 ISR (TIMER0_OVF_vect) {
@@ -78,37 +75,23 @@ ISR (TIMER0_OVF_vect) {
 }
 int afstand_meter()
 {
-	sei();
-		gv_echo = BEGIN;
-		PORTD |= _BV(4);
+		PORTD |= (1 << 4);
 		_delay_us(12);
-		PORTD = 0x00;
-		int distance = calc_cm(gv_counter);
-		if (distance >= afstand | distance <= 5){
-			return 0;
-		
-		}
-		else {
-			return 1;
-	
-	}
+		PORTD &= ~(1 << 4);
 }
+unsigned int time = 0;
+unsigned int distance = 0;
 
-
-
-ISR (INT1_vect)
-{
-	if(PIND & (1 << 3))
-	{
+ISR (INT1_vect){
+	if (PIND & (1 << 3)) {
 		TCNT0 = 0;
-		gv_counter = 0;
-	}
+		time = 0;
+		} 
 	else {
-		gv_counter += TCNT0;
-		
+		time += TCNT0;
+		distance = time * (64 / 16) / 58;
 	}
-}
-
+	}
 // Start of Serial Code
 
 void uart_init()
@@ -154,10 +137,10 @@ int serial_conn(void){
 		USART_putstring(String);
 		//convert int to string
 		char buffer[8];
-		int tmp = calc_cm(gv_counter);
+		int tmp = calc_cm(time);
 		itoa(tmp, buffer, 10);
 		USART_putstring(buffer);
-		//USART_putstring(String2);
+		USART_putstring(String2);
 		_delay_ms(3000);
 	}
 	return 0;
@@ -195,10 +178,10 @@ void leds(){
 
 int main(void)
 {
-	while(1){
 	init_ports();
-	init_timer();
-	init_ext_int();
+	init_distance();
+	while(1){
+
 	serial_conn();
 	
 	}

@@ -12,7 +12,7 @@ void setLed(uint8_t value, uint8_t position);
 void sendCommand(uint8_t value);
 void write(uint8_t pin, uint8_t val);
 void shiftOut (uint8_t val);
-uint16_t calc_cm(uint16_t counter);
+unsigned int calc_cm(unsigned int counter);
 
 const uint8_t data = 0;
 const uint8_t clock = 1;
