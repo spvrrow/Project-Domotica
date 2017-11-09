@@ -2,6 +2,8 @@
 #https://pythonprogramming.net/using-pip-install-for-python-modules/ kijk naar filmpje voor matplotlib
 #https://pypi.python.org/pypi/Pillow/4.3.0
 #https://pypi.python.org/pypi/pyserial/2.7
+#pip downloaden + drawnow
+#https://stackoverflow.com/questions/23708898/pip-is-not-recognized-as-an-internal-or-external-command
 
 
 from tkinter import *
@@ -10,8 +12,10 @@ from tkinter import ttk
 from PIL import ImageTk, Image
 import matplotlib
 import serial
-
+import matplotlib.pyplot as plt
+import matplotlib as animation
 matplotlib.use("TkAgg")
+from drawnow import *
 
 from matplotlib.backends.backend_tkagg import  FigureCanvasTkAgg, NavigationToolbar2TkAgg
 from matplotlib.figure import Figure
@@ -41,6 +45,8 @@ standaard_uitrol = 10
 class Window(tk.Tk):
     def __init__(self,):
         tk.Tk.__init__(self,)
+
+        lightF = []
 
         #status
         self.statusLabel = Label(self, text= "status rolluik: niet bekend", font=5)
@@ -124,14 +130,36 @@ class Window(tk.Tk):
         #img = Label(self, image=render)
         #img.image = render
         #img.place(x=790, y=10)
+        self.GraphButton = Button(self, text="Graph", command=self.draw)
+        self.GraphButton.place(x=0, y=100)
 
-        f = Figure(figsize=(7, 5), dpi=100)
-        a = f.add_subplot(111)
-        a.plot([1,2,3,4,5,6,7,8],[5,2,1,5,6,7,8,9])
+    def makeFig(self):
+            plt.ylim(0, 2000)
+            plt.title("Licht data")
+            plt.grid(True)
+            plt.ylabel("licht")
+            plt.plot([5, 2, 1, 5, 6, 7, 8,500 ])
+            plt.legend(loc='upper left')
+            plt2 = plt.twinx()
+            plt.ylim(0, 50)
+            plt2.plot([9, 1, 6, 1, 2, 4, 3, 30])
+            plt2.set_ylabel('temp')
+            plt2.ticklabel_format(usedOffset=False)
+            plt2.legend(loc='upper right')
 
-        canvas = FigureCanvasTkAgg(f, self)
-        canvas.show()
-        canvas.get_tk_widget().pack(side=tk.LEFT, expand=False)
+    def draw(self):
+            drawnow(self.makeFig)
+
+
+            # f = Figure(figsize=(7, 5), dpi=100)
+       # a = f.add_subplot(111)
+
+        #canvas = FigureCanvasTkAgg(f, self)
+       # canvas.show()
+        #canvas.get_tk_widget().pack(side=tk.LEFT, expand=False)
+
+
+
 
     # Hieronder staan de button functies
     def set_lichtBoven(self):
@@ -233,8 +261,16 @@ class Window(tk.Tk):
         self.statusLabel.config(text="status rolluik: is gesloten")
 
 
+
+
+
+
+
+
 root = Window()
+
 root.title("Centrale")
+
 root.geometry("1000x800")
 root.mainloop()
 
