@@ -15,7 +15,7 @@
 int main(void)
 {
 	init_adc();
-	serial_conn();
+	serial_conn();
 }
 
 void init_adc()
@@ -28,13 +28,12 @@ void init_adc()
 }
 uint8_t get_adc_value()
 {
-	ADCSRA |= (1<<ADSC); // start conversion
-	loop_until_bit_is_clear(ADCSRA, ADSC);
-	return ADCH; // 8-bit resolution, left adjusted
+ADCSRA |= (1<<ADSC); // start conversion
+loop_until_bit_is_clear(ADCSRA, ADSC);
+return ADCH; // 8-bit resolution, left adjusted
 }
 
 // Start of Serial Code
-
 void uart_init()
 {
 	// set the baud rate
@@ -71,17 +70,20 @@ unsigned char USART_receive(void){
 	
 }
 
+
+
 int serial_conn(void){
 	uart_init();
 	while (1) {
 		USART_putstring(String);
+		
 		//convert int to string
-		char buffer[8];
-		int tmp = get_adc_value();
-		itoa(tmp, buffer, 10);
+		
+		int adc_result0 = get_adc_value() * 10;
+		char buffer[10];
+		itoa(adc_result0, buffer, 10);
 		USART_putstring(buffer);
-		//USART_putstring(String2);
-		_delay_ms(3000);
+		_delay_ms(1000);
 	}
 	return 0;
 }
