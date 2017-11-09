@@ -54,7 +54,8 @@ void init_ports(void)
 void init_timer(void)
 {
 	TCCR0A = 0;
-	TCCR0B = 0;
+	TCCR0B |= (1 << CS01 | (1<< CS00));
+	TIMSK0 = (1 << TOIE0);
 }
 
 // External interrupts initialization
@@ -69,9 +70,12 @@ void init_ext_int(void)
 // Start of ultrasonoor sensor code
 uint16_t calc_cm(uint16_t counter)
 {
-	return (gv_counter /2 )/ 7.25;
+	return gv_counter *(64 / 16) / 58.2;
 }
 
+ISR (TIMER0_OVF_vect) {
+	gv_counter+= 1<<8;
+}
 int afstand_meter()
 {
 	sei();
@@ -94,15 +98,14 @@ int afstand_meter()
 
 ISR (INT1_vect)
 {
-	if(gv_echo == BEGIN)
+	if(PIND & (1 << 3))
 	{
 		TCNT0 = 0;
-		TCCR0B |= (1 << CS01);
-		gv_echo = END;
+		gv_counter = 0;
 	}
 	else {
-		TCCR0B = 0;
-		gv_counter = TCNT0;
+		gv_counter += TCNT0;
+		
 	}
 }
 
