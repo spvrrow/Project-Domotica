@@ -1,6 +1,6 @@
-#Voor alle imports kijk naar de volgende links
+#Voor alle imports kijk naar de volgende links:
+
 #https://pythonprogramming.net/using-pip-install-for-python-modules/ kijk naar filmpje voor matplotlib
-#https://pypi.python.org/pypi/Pillow/4.3.0
 #https://pypi.python.org/pypi/pyserial/2.7
 #pip downloaden + drawnow
 #https://stackoverflow.com/questions/23708898/pip-is-not-recognized-as-an-internal-or-external-command
@@ -17,8 +17,6 @@ import matplotlib as animation
 matplotlib.use("TkAgg")
 from drawnow import *
 
-from matplotlib.backends.backend_tkagg import  FigureCanvasTkAgg, NavigationToolbar2TkAgg
-from matplotlib.figure import Figure
 
 
 
@@ -36,17 +34,13 @@ standaard_inrol = 2
 uitrolstand = 10
 standaard_uitrol = 10
 
-
-#Aanzetten connectie tussen python en arduino
-# SerialArduino = serial.Serial('COM4', 9600)
-
-
 #Maken de class voor de GUI
 class Window(tk.Tk):
     def __init__(self,):
         tk.Tk.__init__(self,)
 
         lightF = []
+        self.SerialArduino = serial.Serial('COM1', 9600)
 
         #status
         self.statusLabel = Label(self, text= "status rolluik: niet bekend", font=5)
@@ -123,16 +117,12 @@ class Window(tk.Tk):
         self.licht_bovenWaardeButton.place(x=600, y= 720)
         self.licht_bovenWaardeLabel = Label(self, text="Bovenwaarde:")
         self.licht_bovenWaardeLabel.place(x=416, y= 718)
-        #Img display
-        #load = Image.open("rolluiken.jpg")
-        #render = ImageTk.PhotoImage(load)
 
-        #img = Label(self, image=render)
-        #img.image = render
-        #img.place(x=790, y=10)
+        # button voor de grafiek
         self.GraphButton = Button(self, text="Graph", command=self.draw)
         self.GraphButton.place(x=0, y=100)
 
+    # Functie voor het maken van de grafiek
     def makeFig(self):
             plt.ylim(0, 2000)
             plt.title("Licht data")
@@ -147,19 +137,9 @@ class Window(tk.Tk):
             plt2.ticklabel_format(usedOffset=False)
             plt2.legend(loc='upper right')
 
+    #Functie voor het plotten en calculeren van de grafiek
     def draw(self):
             drawnow(self.makeFig)
-
-
-            # f = Figure(figsize=(7, 5), dpi=100)
-       # a = f.add_subplot(111)
-
-        #canvas = FigureCanvasTkAgg(f, self)
-       # canvas.show()
-        #canvas.get_tk_widget().pack(side=tk.LEFT, expand=False)
-
-
-
 
     # Hieronder staan de button functies
     def set_lichtBoven(self):
@@ -170,10 +150,11 @@ class Window(tk.Tk):
                 licht_bovengrens = bovengrens
                 bovengrens_send = ("K" + str(bovengrens))
                 print(bovengrens_send)
+                self.SerialArduino.write(bovengrens_send)
             else:
                 self.licht_bovenWaardeEntry.delete(0, tk.END)
                 self.licht_bovenWaardeEntry.insert(tk.INSERT, standaard_bovengrensL)
-                print("REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
+                print("Deze waarde is te laag, voer een waarde boven" + str(licht_ondergrens) + " in")
         else:
             print("Het invoer veld mag niet leeg zijn.")
 
@@ -185,10 +166,11 @@ class Window(tk.Tk):
                 licht_ondergrens = ondergrens
                 ondergrens_send = ("u" + str(ondergrens))
                 print(ondergrens_send)
+                self.SerialArduino.write(ondergrens_send)
             else:
                 self.licht_onderWaardeEntry.delete(0, tk.END)
                 self.licht_onderWaardeEntry.insert(tk.INSERT, standaard_ondergrensL)
-                print("REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
+                print("Deze waarde is te hoog, voer een waarde onder " + str(licht_bovengrens) + " in")
         else:
             print("Het invoer veld mag niet leeg zijn.")
 
@@ -200,10 +182,11 @@ class Window(tk.Tk):
                 temp_bovengrens = bovengrens
                 bovengrens_send = ("!" + str(bovengrens))
                 print(bovengrens_send)
+                self.SerialArduino.write(bovengrens_send)
             else:
                 self.temp_bovenWaardeEntry.delete(0, tk.END)
                 self.temp_bovenWaardeEntry.insert(tk.INSERT, standaard_bovengrensT)
-                print("REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
+                print("Deze waarde is te laag, voor een waarde boven " + str(temp_ondergrens) + " in")
         else:
             print("Het invoer veld mag niet leeg zijn.")
 
@@ -215,10 +198,12 @@ class Window(tk.Tk):
                 temp_ondergrens = ondergrens
                 ondergrens_send = ("q" + str(ondergrens))
                 print(ondergrens_send)
+                self.serialArduino.write(ondergrens_send)
             else:
+
                 self.temp_onderWaardeEntry.delete(0, tk.END)
                 self.temp_onderWaardeEntry.insert(tk.INSERT, standaard_ondergrensT)
-                print("REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
+                print("Deze waarde is te hoog, voer een waarde onder "+ str(temp_bovengrens) + " in")
         else:
             print("Het invoer veld mag niet leeg zijn.")
 
@@ -230,10 +215,11 @@ class Window(tk.Tk):
                 inrolstand = inrol
                 inrolstand_send = ("o" + str(inrol))
                 print(inrolstand_send)
+                self.serialArduino.write(inrolstand_send)
             else:
                 self.inrolWaardeEntry.delete(0, tk.END)
                 self.inrolWaardeEntry.insert(tk.INSERT, standaard_inrol)
-                print("REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
+                print("Deze waarde is te hoog, voer een waarde onder " + str(uitrolstand) + " in")
         else:
             print("Het invoer veld mag niet leeg zijn.")
 
@@ -243,12 +229,13 @@ class Window(tk.Tk):
             uitrol = int(self.uitrolWaardeEntry.get())
             if uitrol > inrolstand:
                 uitrolstand = uitrol
-                uirolstand_send = ("p" + str(uitrol))
-                print(uirolstand_send)
+                uitrolstand_send = ("p" + str(uitrol))
+                print(uitrolstand_send)
+                self.serialArduino.write(uitrolstand_send)
             else:
                 self.uitrolWaardeEntry.delete(0, tk.END)
                 self.uitrolWaardeEntry.insert(tk.INSERT, standaard_uitrol)
-                print("REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
+                print("Deze waarde is te laag, voer een waarde boven " + str(inrolstand) + " in")
         else:
             print("Het invoer veld mag niet leeg zijn.")
 
