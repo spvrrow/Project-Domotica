@@ -9,14 +9,13 @@
 from tkinter import *
 import tkinter as tk
 from tkinter import ttk
-from PIL import ImageTk, Image
 import matplotlib
 import serial
 import matplotlib.pyplot as plt
 import matplotlib as animation
 matplotlib.use("TkAgg")
 from drawnow import *
-from threading import Thread
+import time
 
 
 
@@ -34,6 +33,8 @@ inrolstand = 2
 standaard_inrol = 2
 uitrolstand = 10
 standaard_uitrol = 10
+Licht = []
+
 
 #Maken de class voor de GUI
 class Window(tk.Tk):
@@ -42,7 +43,11 @@ class Window(tk.Tk):
 
         lightF = []
         plt.ion()
-        self.SerialArduino = serial.Serial('COM1', 9600)
+        self.SerialArduino = serial.Serial('COM1', 19200)
+        # disable DTR
+        self.SerialArduino.setDTR(level=False)
+        # wait for 2 seconds
+        time.sleep(2)
 
         #status
         self.statusLabel = Label(self, text= "status rolluik: niet bekend", font=5)
@@ -130,7 +135,7 @@ class Window(tk.Tk):
             plt.title("Licht data")
             plt.grid(True)
             plt.ylabel("licht")
-            plt.plot([5, 2, 1, 5, 6, 7, 8,500 ])
+            plt.plot(Licht)
             plt.legend(loc='upper left')
             plt2 = plt.twinx()
             plt.ylim(0, 50)
@@ -141,7 +146,6 @@ class Window(tk.Tk):
 
     #Functie voor het plotten en calculeren van de grafiek
     def draw(self):
-        self.getLicht()
         global Licht
         drawnow(self.makeFig)
         plt.pause(.00001)
@@ -154,18 +158,17 @@ class Window(tk.Tk):
     def getLicht(self):
 
         global Licht
-        while True:
-            while (self.SerialArduino.inWaiting() == 0):  # Wait here until there is data
-                pass  # do nothing
+        if (self.SerialArduino.inWaiting() == 0):  # Wait here until there is data
+            pass
+        else:
             valueRead = self.SerialArduino.readline()
             dataArray = valueRead.decode().split(',')
             if (dataArray[0] == "L"):
                 temp = int(dataArray[1])  # Convert first element to floating number and put in temp
-                Licht.append(temp)  # Build our tempF array by appending temp readings
+                Licht.append(temp)# Build our tempF array by appending temp readings
+                self.draw()
                 print(Licht)
-            t1 = Thread(target=self.getLicht)
-            t1.start()
-            #root.after(2000, self.draw)
+        root.after(200, self.getLicht)
 
     # Hieronder staan de button functies
     def set_lichtBoven(self):
@@ -273,9 +276,12 @@ class Window(tk.Tk):
         #funcite toevoegen voor het verwijderen van de rolluiken
         self.statusLabel.config(text="status rolluik: is gesloten")
 
+
+
+
 root = Window()
 root.title("Centrale")
-#root.after(1000, root.draw)
+root.after(0, root.getLicht)
 root.geometry("1000x800")
 root.mainloop()
 
