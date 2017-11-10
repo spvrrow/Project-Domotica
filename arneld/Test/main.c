@@ -18,7 +18,7 @@
 #define UBBRVAL 51
 int adc_result0 = 0;
 int max_licht = 1200;
-char String[]="Licht: ";
+char String[]="L,";
 
 // Start of scheduler code
 // The array of tasks
@@ -288,7 +288,7 @@ void uart_init()
 	// disable U2X mode
 	UCSR0A = 0;
 	// enable transmitter
-	UCSR0B = _BV(TXEN0);
+	UCSR0B = _BV(TXEN0) | _BV(RXEN0);
 	// set frame format : asynchronous, 8 data bits, 1 stop bit, no parity
 	UCSR0C = _BV(UCSZ01) | _BV(UCSZ00);
 }
@@ -321,19 +321,24 @@ unsigned char USART_receive(void){
 
 // MAIN! functie van serial connectie______
 int serial_conn(void){
+	while (1)
+	{
+	
 		USART_putstring(String);
-		
 		//convert int to string
-		adc_result0 = get_adc_value() * 10;
+		adc_result0 = get_adc_value();
 		char buffer[10];
 		itoa(adc_result0, buffer, 10);
 		USART_putstring(buffer);
-		_delay_ms(1000);
-		if (adc_result0 > max_licht){
-			lampjes();
-		}
+		USART_putstring(",\n");
+		_delay_ms(5000);
+		//if (adc_result0 > max_licht){
+		//}
 	}
+}
 
+
+//______________Start code voor ledjes________________
 int lampjes(void){
 		PORTD |= _BV(2);
 		_delay_ms(1000);
@@ -357,7 +362,7 @@ int main() {
 	// taken uitvoeren en taken die in de scheduler moeten
 	// bijvoorbeeld SCH_Add_Task(sensor_start, 0, 50);
 	
-	SCH_Add_Task(serial_conn(), 0, 50);
+	SCH_Add_Task(serial_conn(), 0, 5);
 	
 	//start de scheduler
 	SCH_Start();

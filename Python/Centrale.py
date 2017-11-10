@@ -9,13 +9,13 @@
 from tkinter import *
 import tkinter as tk
 from tkinter import ttk
-from PIL import ImageTk, Image
 import matplotlib
 import serial
 import matplotlib.pyplot as plt
 import matplotlib as animation
 matplotlib.use("TkAgg")
 from drawnow import *
+from time import sleep
 
 
 
@@ -33,14 +33,20 @@ inrolstand = 2
 standaard_inrol = 2
 uitrolstand = 10
 standaard_uitrol = 10
+Licht = []
+lightF = []
 
 #Maken de class voor de GUI
 class Window(tk.Tk):
     def __init__(self,):
         tk.Tk.__init__(self,)
 
-        lightF = []
-        self.SerialArduino = serial.Serial('COM1', 9600)
+
+        self.SerialArduino = serial.Serial('COM1', 19200)
+
+
+
+
 
         #status
         self.statusLabel = Label(self, text= "status rolluik: niet bekend", font=5)
@@ -113,7 +119,7 @@ class Window(tk.Tk):
         self.licht_bovenWaardeEntry = Entry(self)
         self.licht_bovenWaardeEntry.insert(0, licht_bovengrens)
         self.licht_bovenWaardeEntry.place(x=500, y=720, width=80)
-        self.licht_bovenWaardeButton = Button(self, text= "zet", command=self.set_lichtBoven)
+        self.licht_bovenWaardeButton = Button(self, text= "zet", command=self.getLicht)
         self.licht_bovenWaardeButton.place(x=600, y= 720)
         self.licht_bovenWaardeLabel = Label(self, text="Bovenwaarde:")
         self.licht_bovenWaardeLabel.place(x=416, y= 718)
@@ -128,7 +134,7 @@ class Window(tk.Tk):
             plt.title("Licht data")
             plt.grid(True)
             plt.ylabel("licht")
-            plt.plot([5, 2, 1, 5, 6, 7, 8,500 ])
+            plt.plot()
             plt.legend(loc='upper left')
             plt2 = plt.twinx()
             plt.ylim(0, 50)
@@ -137,8 +143,24 @@ class Window(tk.Tk):
             plt2.ticklabel_format(usedOffset=False)
             plt2.legend(loc='upper right')
 
+
+
+    def getLicht(self):
+        global Licht
+        while True:
+            while (self.SerialArduino.inWaiting() == 0):  # Wait here until there is data
+                pass  # do nothing
+
+            valueRead = self.SerialArduino.readline()
+            dataArray = valueRead.decode().split(',')
+            if (dataArray[0] == "L"):
+                temp = int(dataArray[1])  # Convert first element to floating number and put in temp
+                Licht.append(temp)  # Build our tempF array by appending temp readings
+                print(Licht)
+
     #Functie voor het plotten en calculeren van de grafiek
     def draw(self):
+        
             drawnow(self.makeFig)
 
     # Hieronder staan de button functies
@@ -164,9 +186,10 @@ class Window(tk.Tk):
             ondergrens = int(self.licht_onderWaardeEntry.get())
             if ondergrens < licht_bovengrens:
                 licht_ondergrens = ondergrens
-                ondergrens_send = ("u" + str(ondergrens))
+                ondergrens_send = ondergrens
                 print(ondergrens_send)
-                self.SerialArduino.write(ondergrens_send)
+
+                self.SerialArduino.write((b'ondergrens_send'))
             else:
                 self.licht_onderWaardeEntry.delete(0, tk.END)
                 self.licht_onderWaardeEntry.insert(tk.INSERT, standaard_ondergrensL)
@@ -246,6 +269,10 @@ class Window(tk.Tk):
     def sluitLuik(self):
         #funcite toevoegen voor het verwijderen van de rolluiken
         self.statusLabel.config(text="status rolluik: is gesloten")
+
+
+
+
 
 
 
