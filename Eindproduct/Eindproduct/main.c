@@ -60,8 +60,6 @@ void init_distance() {
 	DDRD |= (1 << 4);
 }
 
-
-
 // Start of ultrasonor sensor code
 // Echo on D3
 // Trig on D4
