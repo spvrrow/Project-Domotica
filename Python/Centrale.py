@@ -13,7 +13,6 @@ import matplotlib
 import serial
 import matplotlib.pyplot as plt
 import matplotlib as animation
-matplotlib.use("TkAgg")
 from drawnow import *
 import time
 
@@ -34,6 +33,7 @@ standaard_inrol = 2
 uitrolstand = 10
 standaard_uitrol = 10
 Licht = []
+Temp = []
 
 
 #Maken de class voor de GUI
@@ -132,14 +132,14 @@ class Window(tk.Tk):
     # Functie voor het maken van de grafiek
     def makeFig(self):
             plt.ylim(0, 2000)
-            plt.title("Licht data")
+            plt.title("Sensor data")
             plt.grid(True)
             plt.ylabel("licht")
             plt.plot(Licht)
             plt.legend(loc='upper left')
             plt2 = plt.twinx()
             plt.ylim(0, 50)
-            plt2.plot([9, 1, 6, 1, 2, 4, 3, 30])
+            plt2.plot(Temp)
             plt2.set_ylabel('temp')
             plt2.ticklabel_format(usedOffset=False)
             plt2.legend(loc='upper right')
@@ -158,17 +158,24 @@ class Window(tk.Tk):
     def getLicht(self):
 
         global Licht
+        global Temp
         if (self.SerialArduino.inWaiting() == 0):  # Wait here until there is data
             pass
         else:
             valueRead = self.SerialArduino.readline()
             dataArray = valueRead.decode().split(',')
             if (dataArray[0] == "L"):
-                temp = int(dataArray[1])  # Convert first element to floating number and put in temp
-                Licht.append(temp)# Build our tempF array by appending temp readings
+                licht_array = int(dataArray[1])  # Convert first element to floating number and put in temp
+                Licht.append(licht_array)# Build our tempF array by appending temp readings
                 self.draw()
                 print(Licht)
+            if (dataArray[0] == "T"):
+                temp_array = int(dataArray[1])
+                Temp.append(temp_array)
+                self.draw()
+                print(Temp)
         root.after(200, self.getLicht)
+
 
     # Hieronder staan de button functies
     def set_lichtBoven(self):
@@ -179,7 +186,7 @@ class Window(tk.Tk):
                 licht_bovengrens = bovengrens
                 bovengrens_send = ("K" + str(bovengrens))
                 print(bovengrens_send)
-                self.SerialArduino.write(bovengrens_send)
+                self.SerialArduino.write(bovengrens_send.encode())
             else:
                 self.licht_bovenWaardeEntry.delete(0, tk.END)
                 self.licht_bovenWaardeEntry.insert(tk.INSERT, standaard_bovengrensL)
@@ -195,7 +202,7 @@ class Window(tk.Tk):
                 licht_ondergrens = ondergrens
                 ondergrens_send = ("u" + str(ondergrens))
                 print(ondergrens_send)
-                self.SerialArduino.write(ondergrens_send)
+                self.SerialArduino.write(ondergrens_send.encode())
             else:
                 self.licht_onderWaardeEntry.delete(0, tk.END)
                 self.licht_onderWaardeEntry.insert(tk.INSERT, standaard_ondergrensL)
@@ -207,11 +214,11 @@ class Window(tk.Tk):
         global temp_bovengrens
         if len(self.temp_bovenWaardeEntry.get()) != 0:
             bovengrens = int(self.temp_bovenWaardeEntry.get())
-            if bovengrens > temp_bovengrens:
+            if bovengrens > temp_ondergrens:
                 temp_bovengrens = bovengrens
                 bovengrens_send = ("!" + str(bovengrens))
                 print(bovengrens_send)
-                self.SerialArduino.write(bovengrens_send)
+                self.SerialArduino.write(bovengrens_send.encode())
             else:
                 self.temp_bovenWaardeEntry.delete(0, tk.END)
                 self.temp_bovenWaardeEntry.insert(tk.INSERT, standaard_bovengrensT)
@@ -223,13 +230,12 @@ class Window(tk.Tk):
         global temp_ondergrens
         if len(self.temp_onderWaardeEntry.get()) != 0:
             ondergrens = int(self.temp_onderWaardeEntry.get())
-            if ondergrens < temp_ondergrens:
+            if ondergrens < temp_bovengrens:
                 temp_ondergrens = ondergrens
                 ondergrens_send = ("q" + str(ondergrens))
                 print(ondergrens_send)
-                self.serialArduino.write(ondergrens_send)
+                self.SerialArduino.write(ondergrens_send.encode())
             else:
-
                 self.temp_onderWaardeEntry.delete(0, tk.END)
                 self.temp_onderWaardeEntry.insert(tk.INSERT, standaard_ondergrensT)
                 print("Deze waarde is te hoog, voer een waarde onder "+ str(temp_bovengrens) + " in")
@@ -244,7 +250,7 @@ class Window(tk.Tk):
                 inrolstand = inrol
                 inrolstand_send = ("o" + str(inrol))
                 print(inrolstand_send)
-                self.serialArduino.write(inrolstand_send)
+                self.SerialArduino.write(inrolstand_send.encode())
             else:
                 self.inrolWaardeEntry.delete(0, tk.END)
                 self.inrolWaardeEntry.insert(tk.INSERT, standaard_inrol)
@@ -260,7 +266,7 @@ class Window(tk.Tk):
                 uitrolstand = uitrol
                 uitrolstand_send = ("p" + str(uitrol))
                 print(uitrolstand_send)
-                self.serialArduino.write(uitrolstand_send)
+                self.SerialArduino.write(uitrolstand_send.encode())
             else:
                 self.uitrolWaardeEntry.delete(0, tk.END)
                 self.uitrolWaardeEntry.insert(tk.INSERT, standaard_uitrol)
@@ -269,11 +275,13 @@ class Window(tk.Tk):
             print("Het invoer veld mag niet leeg zijn.")
 
     def openLuik(self):
-        #functie toevoegen voor het opnenen van de rolluiken
+        open = "O1"
+        self.SerialArduino.write(open.encode())
         self.statusLabel.config(text="status rolluik: is open")
 
     def sluitLuik(self):
-        #funcite toevoegen voor het verwijderen van de rolluiken
+        dicht = "D0"
+        self.SerialArduino.write(dicht.encode())
         self.statusLabel.config(text="status rolluik: is gesloten")
 
 
