@@ -17,8 +17,10 @@
 //Defines
 #define UBBRVAL 51
 int adc_result0 = 0;
+int adc_result1 = 0;
 //int max_temp = 1200;
-char String[]="Temp: ";
+char String[]="T,";
+char String2[]="L,";
 
 // Start of scheduler code
 // The array of tasks
@@ -245,11 +247,18 @@ ISR(TIMER1_COMPA_vect)
 //__________________Begin van initialisatie code_________________
 
 //initialisatie van ADC voor temp sensor
-void init_adc()
+void init_adc_temp()
 {
-	// ref=Vcc, left adjust the result (8 bit resolution),
-	// select channel 0 (PC0 = input)
-	ADMUX = (1<<REFS0)|(1<<ADLAR);
+	//(PC0 = input)
+	ADMUX = (1<<REFS0) | (1<<ADLAR);
+	// enable the ADC & prescale = 128
+	ADCSRA = (1<<ADEN)|(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0);
+}
+
+void init_adc_licht()
+{
+	//(PC1 = input)
+	ADMUX = (1<<REFS0)|(1<<MUX0)|(1<<ADLAR);
 	// enable the ADC & prescale = 128
 	ADCSRA = (1<<ADEN)|(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0);
 }
@@ -304,9 +313,11 @@ unsigned char USART_receive(void){
 	
 }
 
-// MAIN! functie van serial connectie______
-int serial_conn(void){	
+// MAIN! functie van temperatuursensor
+int temperatuursensor(void){
+		init_adc_temp();
 		USART_putstring(String);
+		
 		//convert int to string
 		adc_result0 = get_adc_value();
 		int mv = (adc_result0/1024.0)*5000;
@@ -314,8 +325,18 @@ int serial_conn(void){
 		char buffer[10];
 		itoa(celcius, buffer, 10);
 		USART_putstring(buffer);
-		//if (adc_result0 > max_licht){
-		//}
+}
+
+// MAIN! functie van lichtsensor
+int lichtsensor(void){
+		init_adc_licht();
+		USART_putstring(String2);
+		
+		//convert int to string
+		adc_result1 = get_adc_value() * 10;
+		char buffer[10];
+		itoa(adc_result1, buffer, 10);
+		USART_putstring(buffer);
 }
 
 int main() {
@@ -325,14 +346,15 @@ int main() {
 	*
 	*/
 	uart_init();
-	init_adc();
 	
 	SCH_Init_T1();
 	
 	// taken uitvoeren en taken die in de scheduler moeten
 	// bijvoorbeeld SCH_Add_Task(sensor_start, 0, 50);
+	// 50 * 10ms = 500ms = halve seconde
 	
-	SCH_Add_Task(serial_conn(), 500, 0);
+	SCH_Add_Task(temperatuursensor, 0, 3000);
+	SCH_Add_Task(lichtsensor, 0, 4000);
 	
 	//start de scheduler
 	SCH_Start();
