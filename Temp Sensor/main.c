@@ -251,7 +251,7 @@ void init_adc()
 	// select channel 0 (PC0 = input)
 	ADMUX = (1<<REFS0)|(1<<ADLAR);
 	// enable the ADC & prescale = 128
-	ADCSRA |= (1<<ADPS1)|(1<<ADPS2);
+	ADCSRA = (1<<ADEN)|(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0);
 }
 
 // Value opragen van de ADC
@@ -305,10 +305,7 @@ unsigned char USART_receive(void){
 }
 
 // MAIN! functie van serial connectie______
-int serial_conn(void){
-	while (1)
-	{
-	
+int serial_conn(void){	
 		USART_putstring(String);
 		//convert int to string
 		adc_result0 = get_adc_value();
@@ -319,7 +316,6 @@ int serial_conn(void){
 		USART_putstring(buffer);
 		//if (adc_result0 > max_licht){
 		//}
-	}
 }
 
 int main() {
@@ -336,7 +332,7 @@ int main() {
 	// taken uitvoeren en taken die in de scheduler moeten
 	// bijvoorbeeld SCH_Add_Task(sensor_start, 0, 50);
 	
-	SCH_Add_Task(serial_conn(), 0, 5);
+	SCH_Add_Task(serial_conn(), 500, 0);
 	
 	//start de scheduler
 	SCH_Start();
