@@ -24,10 +24,10 @@ temp_bovengrens = 20
 standaard_bovengrensT = 20
 temp_ondergrens = 10
 standaard_ondergrensT = 10
-licht_bovengrens = 900
-standaard_bovengrensL = 900
-licht_ondergrens = 600
-standaard_ondergrensL = 600
+licht_bovengrens = 500
+standaard_bovengrensL = 500
+licht_ondergrens = 50
+standaard_ondergrensL = 50
 inrolstand = 2
 standaard_inrol = 2
 uitrolstand = 10
@@ -43,7 +43,7 @@ class Window(tk.Tk):
 
         lightF = []
         plt.ion()
-        self.SerialArduino = serial.Serial('COM1', 19200)
+        self.SerialArduino = serial.Serial('COM3', 19200)
         # disable DTR
         self.SerialArduino.setDTR(level=False)
         # wait for 2 seconds
