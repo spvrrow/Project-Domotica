@@ -9,12 +9,9 @@
 
 /* 
  * HC-SR04
- * trigger to sensor : uno 0 (PD0) output
+ * trigger to sensor : uno 4 (PD4) output
  * echo from sensor  : uno 3 (PD3 = INT1) input
  * 
- * DIO : uno 8  (PB0) data
- * CLK : uno 9  (PB1) clock
- * STB : uno 10 (PB2) strobe
  *
  * uno 3/4/5 leds groen/geel/rood
  * 

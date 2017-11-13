@@ -43,7 +43,7 @@ class Window(tk.Tk):
 
         lightF = []
         plt.ion()
-        self.SerialArduino = serial.Serial('COM3', 19200)
+        self.SerialArduino = serial.Serial('COM1', 19200)
         # disable DTR
         #self.SerialArduino.setDTR(level=False)
         # wait for 2 seconds
@@ -135,7 +135,7 @@ class Window(tk.Tk):
             plt.title("Sensor data")
             plt.grid(True)
             plt.ylabel("licht")
-            plt.plot(Licht)
+            plt.plot(Licht, "r-")
             plt.legend(loc='upper left')
             plt2 = plt.twinx()
             plt.ylim(0, 50)
@@ -174,6 +174,10 @@ class Window(tk.Tk):
                 Temp.append(temp_array)
                 self.draw()
                 print(Temp)
+            if (dataArray[0] == "O"):
+                self.openLuik()
+            if (dataArray[0] == "C"):
+                self.sluitLuik()
         root.after(200, self.getLicht)
 
 
