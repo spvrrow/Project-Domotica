@@ -45,7 +45,7 @@ class Window(tk.Tk):
         plt.ion()
         self.SerialArduino = serial.Serial('COM1', 19200)
         # disable DTR
-        self.SerialArduino.setDTR(level=False)
+        #self.SerialArduino.setDTR(level=False)
         # wait for 2 seconds
         time.sleep(2)
 
@@ -131,7 +131,7 @@ class Window(tk.Tk):
 
     # Functie voor het maken van de grafiek
     def makeFig(self):
-            plt.ylim(0, 2000)
+            plt.ylim(0, 600)
             plt.title("Sensor data")
             plt.grid(True)
             plt.ylabel("licht")
@@ -184,7 +184,7 @@ class Window(tk.Tk):
             bovengrens = int(self.licht_bovenWaardeEntry.get())
             if bovengrens > licht_ondergrens:
                 licht_bovengrens = bovengrens
-                bovengrens_send = ("K" + str(bovengrens))
+                bovengrens_send = ("b" + str(bovengrens))
                 print(bovengrens_send)
                 self.SerialArduino.write(bovengrens_send.encode())
             else:
@@ -200,7 +200,7 @@ class Window(tk.Tk):
             ondergrens = int(self.licht_onderWaardeEntry.get())
             if ondergrens < licht_bovengrens:
                 licht_ondergrens = ondergrens
-                ondergrens_send = ("u" + str(ondergrens))
+                ondergrens_send = ("i" + str(ondergrens))
                 print(ondergrens_send)
                 self.SerialArduino.write(ondergrens_send.encode())
             else:
@@ -216,7 +216,7 @@ class Window(tk.Tk):
             bovengrens = int(self.temp_bovenWaardeEntry.get())
             if bovengrens > temp_ondergrens:
                 temp_bovengrens = bovengrens
-                bovengrens_send = ("!" + str(bovengrens))
+                bovengrens_send = ("t" + str(bovengrens))
                 print(bovengrens_send)
                 self.SerialArduino.write(bovengrens_send.encode())
             else:
@@ -232,7 +232,7 @@ class Window(tk.Tk):
             ondergrens = int(self.temp_onderWaardeEntry.get())
             if ondergrens < temp_bovengrens:
                 temp_ondergrens = ondergrens
-                ondergrens_send = ("q" + str(ondergrens))
+                ondergrens_send = ("l" + str(ondergrens))
                 print(ondergrens_send)
                 self.SerialArduino.write(ondergrens_send.encode())
             else:
@@ -264,7 +264,7 @@ class Window(tk.Tk):
             uitrol = int(self.uitrolWaardeEntry.get())
             if uitrol > inrolstand:
                 uitrolstand = uitrol
-                uitrolstand_send = ("p" + str(uitrol))
+                uitrolstand_send = ("c" + str(uitrol))
                 print(uitrolstand_send)
                 self.SerialArduino.write(uitrolstand_send.encode())
             else:
@@ -275,12 +275,12 @@ class Window(tk.Tk):
             print("Het invoer veld mag niet leeg zijn.")
 
     def openLuik(self):
-        open = "O1"
+        open = "r"
         self.SerialArduino.write(open.encode())
         self.statusLabel.config(text="status rolluik: is open")
 
     def sluitLuik(self):
-        dicht = "D0"
+        dicht = "q"
         self.SerialArduino.write(dicht.encode())
         self.statusLabel.config(text="status rolluik: is gesloten")
 

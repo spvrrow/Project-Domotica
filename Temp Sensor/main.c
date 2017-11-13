@@ -8,33 +8,32 @@
 // All includes
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#define F_CPU 16E6
+#define F_CPU 16000000UL
 #include <util/delay.h>
 #include <avr/sfr_defs.h>
 #include "distance.h"
 #include "AVR_TTC_scheduler.h"
 
+void uart_init(void);
+unsigned char USART_receive(void);
+void transmit( unsigned char data);
+void USART_putstring(char* StringPtr);
+
 //Defines
 #define UBBRVAL 51
+#define BAUDRATE 19200
+#define BAUD_PRESCALLER (((F_CPU / (BAUDRATE * 16UL))) - 1)
+
 int adc_result0 = 0;
 int adc_result1 = 0;
 //int max_temp = 1200;
 char String[]="T,";
 char String2[]="L,";
+int lichtboven = 240;
 
 // Start of scheduler code
 // The array of tasks
 sTask SCH_tasks_G[SCH_MAX_TASKS];
-
-/*------------------------------------------------------------------*-
-
-  SCH_Dispatch_Tasks()
-
-  This is the 'dispatcher' function.  When a task (function)
-  is due to run, SCH_Dispatch_Tasks() will run it.
-  This function must be called (repeatedly) from the main loop.
-
--*------------------------------------------------------------------*/
 
 void SCH_Dispatch_Tasks(void)
 {
@@ -57,52 +56,6 @@ void SCH_Dispatch_Tasks(void)
       }
    }
 }
-
-/*------------------------------------------------------------------*-
-
-  SCH_Add_Task()
-
-  Causes a task (function) to be executed at regular intervals 
-  or after a user-defined delay
-
-  pFunction - The name of the function which is to be scheduled.
-              NOTE: All scheduled functions must be 'void, void' -
-              that is, they must take no parameters, and have 
-              a void return type. 
-                   
-  DELAY     - The interval (TICKS) before the task is first executed
-
-  PERIOD    - If 'PERIOD' is 0, the function is only called once,
-              at the time determined by 'DELAY'.  If PERIOD is non-zero,
-              then the function is called repeatedly at an interval
-              determined by the value of PERIOD (see below for examples
-              which should help clarify this).
-
-
-  RETURN VALUE:  
-
-  Returns the position in the task array at which the task has been 
-  added.  If the return value is SCH_MAX_TASKS then the task could 
-  not be added to the array (there was insufficient space).  If the
-  return value is < SCH_MAX_TASKS, then the task was added 
-  successfully.  
-
-  Note: this return value may be required, if a task is
-  to be subsequently deleted - see SCH_Delete_Task().
-
-  EXAMPLES:
-
-  Task_ID = SCH_Add_Task(Do_X,1000,0);
-  Causes the function Do_X() to be executed once after 1000 sch ticks.            
-
-  Task_ID = SCH_Add_Task(Do_X,0,1000);
-  Causes the function Do_X() to be executed regularly, every 1000 sch ticks.            
-
-  Task_ID = SCH_Add_Task(Do_X,300,1000);
-  Causes the function Do_X() to be executed regularly, every 1000 ticks.
-  Task will be first executed at T = 300 ticks, then 1300, 2300, etc.            
- 
--*------------------------------------------------------------------*/
 
 unsigned char SCH_Add_Task(void (*pFunction)(), const unsigned int DELAY, const unsigned int PERIOD)
 {
@@ -131,20 +84,6 @@ unsigned char SCH_Add_Task(void (*pFunction)(), const unsigned int DELAY, const 
    return Index;
 }
 
-/*------------------------------------------------------------------*-
-
-  SCH_Delete_Task()
-
-  Removes a task from the scheduler.  Note that this does
-  *not* delete the associated function from memory: 
-  it simply means that it is no longer called by the scheduler. 
- 
-  TASK_INDEX - The task index.  Provided by SCH_Add_Task(). 
-
-  RETURN VALUE:  RETURN_ERROR or RETURN_NORMAL
-
--*------------------------------------------------------------------*/
-
 unsigned char SCH_Delete_Task(const unsigned char TASK_INDEX)
 {
    // Return_code can be used for error reporting, NOT USED HERE THOUGH!
@@ -157,16 +96,6 @@ unsigned char SCH_Delete_Task(const unsigned char TASK_INDEX)
 
    return Return_code;
 }
-
-/*------------------------------------------------------------------*-
-
-  SCH_Init_T1()
-
-  Scheduler initialisation function.  Prepares scheduler
-  data structures and sets up timer interrupts at required rate.
-  You must call this function before using the scheduler.  
-
--*------------------------------------------------------------------*/
 
 void SCH_Init_T1(void)
 {
@@ -186,32 +115,10 @@ void SCH_Init_T1(void)
    TIMSK1 = 1 << OCIE1A;   		     // Timer 1 Output Compare A Match Interrupt Enable
 }
 
-/*------------------------------------------------------------------*-
-
-  SCH_Start()
-
-  Starts the scheduler, by enabling interrupts.
-
-  NOTE: Usually called after all regular tasks are added,
-  to keep the tasks synchronised.
-
-  NOTE: ONLY THE SCHEDULER INTERRUPT SHOULD BE ENABLED!!! 
- 
--*------------------------------------------------------------------*/
-
 void SCH_Start(void)
 {
       sei();
 }
-
-/*------------------------------------------------------------------*-
-
-  SCH_Update
-
-  This is the scheduler ISR.  It is called at a rate 
-  determined by the timer settings in SCH_Init_T1().
-
--*------------------------------------------------------------------*/
 
 ISR(TIMER1_COMPA_vect)
 {
@@ -244,7 +151,15 @@ ISR(TIMER1_COMPA_vect)
 
 // _______________Eind van scheduler code______________________
 
+
 //__________________Begin van initialisatie code_________________
+
+// Port initialization
+void init_ports(void)
+{
+	DDRD |= _BV(DDD2);
+}
+
 
 //initialisatie van ADC voor temp sensor
 void init_adc_temp()
@@ -271,29 +186,30 @@ uint8_t get_adc_value()
 	return ADCH; // 8-bit resolution, left adjusted
 }
 
+
 //______________________________Start van code voor Serial_____________________________
 
 //initialisatie van uart
-void uart_init()
+void uart_init(void)
 {
-	// set the baud rate
-	UBRR0H = 0;
-	UBRR0L = UBBRVAL;
-	// disable U2X mode
-	UCSR0A = 0;
-	// enable transmitter
-	UCSR0B = _BV(TXEN0) | _BV(RXEN0);
-	// set frame format : asynchronous, 8 data bits, 1 stop bit, no parity
-	UCSR0C = _BV(UCSZ01) | _BV(UCSZ00);
+ UBRR0H = (uint8_t)(BAUD_PRESCALLER>>8);
+ UBRR0L = (uint8_t)(BAUD_PRESCALLER);
+ UCSR0B = (1<<RXEN0)|(1<<TXEN0);
+ UCSR0C = (3<<UCSZ00);
+}
+
+// Functie voor het ontvangen van data
+unsigned char USART_receive(void){
+	
+while((UCSR0A &(1<<RXC0)) == 0);
+return UDR0;
+	
 }
 
 //Functie voor het versturen van data
-void transmit(uint8_t data)
+void transmit(unsigned char data)
 {
-	// wait for an empty transmit buffer
-	// UDRE is set when the transmit buffer is empty
-	loop_until_bit_is_set(UCSR0A, UDRE0);
-	// send the data
+	while(!(UCSR0A & (1<<UDRE0)));
 	UDR0 = data;
 }
 //functie voor het verturen van een string
@@ -302,14 +218,6 @@ void USART_putstring(char* StringPtr){
 	while(*StringPtr != 0x00){ //Here we check if there is still more chars to send, this is done checking the actual char and see if it is different from the null char
 		transmit(*StringPtr);//Using the simple send function we send one char at a time
 	StringPtr++;}        //We increment the pointer so we can read the next char
-	
-}
-
-// Functie voor het ontvangen van data
-unsigned char USART_receive(void){
-	
-	while(!(UCSR0A & (1<<RXC0)));
-	return UDR0;
 	
 }
 
@@ -325,6 +233,7 @@ int temperatuursensor(void){
 		char buffer[10];
 		itoa(celcius, buffer, 10);
 		USART_putstring(buffer);
+		USART_putstring(",\n");
 }
 
 // MAIN! functie van lichtsensor
@@ -333,10 +242,42 @@ int lichtsensor(void){
 		USART_putstring(String2);
 		
 		//convert int to string
-		adc_result1 = get_adc_value() * 10;
+		adc_result1 = get_adc_value();
 		char buffer[10];
 		itoa(adc_result1, buffer, 10);
 		USART_putstring(buffer);
+		USART_putstring(",\n");
+}
+
+void waarde_veranderen()
+{
+	unsigned char datalol = USART_receive();
+	//if (data == 0)
+	//{
+		
+	//}
+	//else{
+		
+	
+		//switch(data){
+			//case 1:
+			
+	
+	char* p = strtok(datalol, "");
+	printf(p);
+	
+	while (datalol == 12)
+		{
+				char buffer[10];
+				lichtboven = 18;
+				itoa(lichtboven, buffer, 10);
+				USART_putstring(buffer);
+				break;
+		}			
+	while (datalol != 12)
+	{
+		break;
+	}
 }
 
 int main() {
@@ -345,6 +286,8 @@ int main() {
 	* bijvoorbeeld init_ports();
 	*
 	*/
+	
+	init_ports();
 	uart_init();
 	
 	SCH_Init_T1();
@@ -353,8 +296,9 @@ int main() {
 	// bijvoorbeeld SCH_Add_Task(sensor_start, 0, 50);
 	// 50 * 10ms = 500ms = halve seconde
 	
-	SCH_Add_Task(temperatuursensor, 0, 3000);
-	SCH_Add_Task(lichtsensor, 0, 4000);
+	SCH_Add_Task(temperatuursensor, 0, 300);
+	SCH_Add_Task(lichtsensor, 0, 400);
+	SCH_Add_Task(waarde_veranderen, 0, 1);
 	
 	//start de scheduler
 	SCH_Start();
