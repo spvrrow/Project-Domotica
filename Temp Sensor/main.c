@@ -1,9 +1,27 @@
 /*
- * GccApplication1.c
+ * main.c
  *
  * Created: 11/10/2017 2:50:03 AM
  * Author : ICT-MAX
+ *
  */ 
+
+
+/* 
+ * HC-SR04
+ * trigger to sensor : uno 0 (PD0) output
+ * echo from sensor  : uno 3 (PD3 = INT1) input
+ * 
+ * DIO : uno 8  (PB0) data
+ * CLK : uno 9  (PB1) clock
+ * STB : uno 10 (PB2) strobe
+ *
+ * uno 3/4/5 leds groen/geel/rood
+ * 
+ * uno A0 = Temp
+ * uno A1 = Light
+ *
+ */
 
 // All includes
 #include <avr/io.h>
@@ -14,21 +32,16 @@
 #include "distance.h"
 #include "AVR_TTC_scheduler.h"
 
-void uart_init(void);
-unsigned char USART_receive(void);
-void transmit( unsigned char data);
-void USART_putstring(char* StringPtr);
-
 //Defines
 #define UBBRVAL 51
 #define BAUDRATE 19200
 #define BAUD_PRESCALLER (((F_CPU / (BAUDRATE * 16UL))) - 1)
 
-int adc_result0 = 0;
-int adc_result1 = 0;
-//int max_temp = 1200;
+// Aanmaken van vaste variabelen
 char String[]="T,";
 char String2[]="L,";
+char stringopen[]="O";
+char stringdicht[]="C";
 int lichtboven = 200;
 int lichtonder = 100;
 int afstandboven = 160;
@@ -36,8 +49,9 @@ int afstandonder = 5;
 int tempboven = 20;
 int temponder = 10;
 
-
-
+// aanmaken van variabelen die nodig zijn voor functies
+int adc_result0 = 0;
+int adc_result1 = 0;
 int celcius = 0;
 volatile int afstand = 160;
 int status = 0;
@@ -265,16 +279,14 @@ int lichtsensor(void){
 
 int lampjes(void)
 {
-
-	
 	if ((adc_result1 > lichtboven) && (afstand >= afstandonder))
 	{
 			PORTD |= _BV(PORTD3);
 			PORTD &= ~ _BV(PORTD5);
 			afstand = afstand - 10;
-				char buffer[10];
-				itoa(afstand, buffer, 10);
-				USART_putstring(buffer);
+			USART_putstring(stringdicht);
+			USART_putstring(",\n");
+			
 	}
 	
 	if ((adc_result1 < lichtonder) && (afstand <= afstandboven))
@@ -282,12 +294,12 @@ int lampjes(void)
 		PORTD |= _BV(PORTD5);
 		PORTD &= ~ _BV(PORTD3);
 		afstand = afstand + 10;
-			char buffer[10];
-			itoa(afstand, buffer, 10);
-			USART_putstring(buffer);
+		USART_putstring(stringopen);
+		USART_putstring(",\n");
+
 	}
 	
-	if ((adc_result0 > tempboven) && (afstand >= afstandonder))
+	/*if ((adc_result0 > tempboven) && (afstand >= afstandonder))
 	{
 		PORTD |= _BV(PORTD3);
 		PORTD &= ~ _BV(PORTD5);
@@ -299,7 +311,7 @@ int lampjes(void)
 		PORTD |= _BV(PORTD5);
 		PORTD &= ~ _BV(PORTD3);
 		afstand = afstand + 10;
-	}
+	}*/
 }
 
 int knipperen(){
