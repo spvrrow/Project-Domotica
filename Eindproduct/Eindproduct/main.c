@@ -29,24 +29,25 @@
 #include "AVR_TTC_scheduler.h"
 
 //Defines
-#define UBBRVAL 51
+#define BAUDRATE 19200
+#define BAUD_PRESCALLER (((F_CPU / (BAUDRATE * 16UL))) - 1)
 
 // creation of variables
-unsigned int gv_counter; // 16 bit counter value
-volatile uint8_t gv_echo; // a flag
 char String[]="D,";
 char String2[]=" cm";
 int schermstatus = 0; //huidige status van het scherm (0 = ingerold, 1= uitgerold)
 int afstand = 120; // bovengrens voor het zonnescherm in centimeters
 int i = 0;
 
+unsigned int time = 0;
+unsigned int distance = 0;
+
 
 // Port initialization
 void init_ports(void)
 {
-	DDRD = (1 << 4);
-	DDRD = ~(1 << 3);
-	DDRB = 0xFF;
+		DDRD |= _BV(DDD3);
+		DDRD |= _BV(DDD4);
 	
 }
 
@@ -57,19 +58,14 @@ void init_distance() {
 	TCCR0A = 0;
 	TCCR0B = (1 << CS01) | (1 << CS00);
 	TIMSK0 = (1 << TOIE0);
-	DDRD |= (1 << 4);
 }
 
 // Start of ultrasonor sensor code
 // Echo on D3
 // Trig on D4
-unsigned int calc_cm(unsigned int counter)
-{
-	return counter * (64 / 16) / 58;
-}
 
 ISR (TIMER0_OVF_vect) {
-	gv_counter+= 1<<8;
+	time+= 1<<8;
 }
 int afstand_meter()
 {
@@ -77,8 +73,7 @@ int afstand_meter()
 		_delay_us(12);
 		PORTD &= ~(1 << 4);
 }
-unsigned int time = 0;
-unsigned int distance = 0;
+
 
 ISR (INT1_vect){
 	if (PIND & (1 << 3)) {
@@ -92,27 +87,30 @@ ISR (INT1_vect){
 	}
 // Start of Serial Code
 
-void uart_init()
+//initialisatie van uart
+void uart_init(void)
 {
-	// set the baud rate
-	UBRR0H = 0;
-	UBRR0L = UBBRVAL;
-	// disable U2X mode
-	UCSR0A = 0;
-	// enable transmitter
-	UCSR0B = _BV(TXEN0);
-	// set frame format : asynchronous, 8 data bits, 1 stop bit, no parity
-	UCSR0C = _BV(UCSZ01) | _BV(UCSZ00);
+	UBRR0H = (uint8_t)(BAUD_PRESCALLER>>8);
+	UBRR0L = (uint8_t)(BAUD_PRESCALLER);
+	UCSR0B = (1<<RXEN0)|(1<<TXEN0);
+	UCSR0C = (3<<UCSZ00);
 }
 
-void transmit(uint8_t data)
+// Functie voor het ontvangen van data
+unsigned char USART_receive(void){
+	
+	while((UCSR0A &(1<<RXC0)) == 0);
+	return UDR0;
+	
+}
+
+//Functie voor het versturen van data
+void transmit(unsigned char data)
 {
-	// wait for an empty transmit buffer
-	// UDRE is set when the transmit buffer is empty
-	loop_until_bit_is_set(UCSR0A, UDRE0);
-	// send the data
+	while(!(UCSR0A & (1<<UDRE0)));
 	UDR0 = data;
 }
+//functie voor het verturen van een string
 void USART_putstring(char* StringPtr){
 	
 	while(*StringPtr != 0x00){ //Here we check if there is still more chars to send, this is done checking the actual char and see if it is different from the null char
@@ -120,64 +118,22 @@ void USART_putstring(char* StringPtr){
 	StringPtr++;}        //We increment the pointer so we can read the next char
 	
 }
-
-unsigned char USART_receive(void){
-	
-	while(!(UCSR0A & (1<<RXC0)));
-	return UDR0;
-	
-}
-
 int serial_conn(void){
-	uart_init();
-	while (1) {
+	
 		afstand_meter();
 		USART_putstring(String);
 		//convert int to string
-		char buffer[8];
-		int tmp = calc_cm(time);
-		itoa(tmp, buffer, 10);
+		char buffer[10];
+		itoa(distance, buffer, 10);
 		USART_putstring(buffer);
 		USART_putstring(String2);
-		_delay_ms(3000);
-	}
-	return 0;
-}
-
-
-// Start code voor lampjes
-void knipper(){
-	while(1){
-		PORTB |= _BV(1);
-		_delay_ms(200);
-		PORTB &= ~(1 << 1); // set output low
-		_delay_ms(200);
-	}
-	}
-
-void leds(){
- if (i == 0){
-	 PORTB |= _BV(2);
-	 PORTB &= ~(1 << 0);
-	 knipper();
-	 if (schermstatus == 1){
-		 schermstatus = 0;
-	 }
- }
- if(i == 1){
-	 PORTB &= ~(1 << 2);
-	 PORTB |= _BV(0);
-	 knipper();
-	 if (schermstatus == 0){
-		 schermstatus = 1;
-	 }
- }
 }
 
 int main(void)
 {
-	init_ports();
+	uart_init();
 	init_distance();
+	init_ports();
 	while(1){
 
 	serial_conn();

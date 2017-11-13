@@ -13,7 +13,7 @@
  * echo from sensor  : uno 3 (PD3 = INT1) input
  * 
  *
- * uno 3/4/5 leds groen/geel/rood
+ * uno 5/6/7 leds groen/geel/rood
  * 
  * uno A0 = Temp
  * uno A1 = Light
@@ -45,6 +45,9 @@ int afstandboven = 160;
 int afstandonder = 5;
 int tempboven = 20;
 int temponder = 10;
+
+unsigned int time = 0;
+unsigned int distance = 0;
 
 // aanmaken van variabelen die nodig zijn voor functies
 int adc_result0 = 0;
@@ -180,9 +183,12 @@ ISR(TIMER1_COMPA_vect)
 void init_ports(void)
 {
 	// poorten voor lampjes
-	DDRD |= _BV(DDD3);	// Groen lampje = uitgerold
-	DDRD |= _BV(DDD4);	// Geel lampje = open of dicht
-	DDRD |= _BV(DDD5);	// Rood lampje = ingerold
+	
+	DDRD |= _BV(DDD3);	
+	DDRD |= _BV(DDD4);	
+	DDRD |= _BV(DDD5);	// Groen lampje = uitgerold
+	DDRD |= _BV(DDD6);	// Geel lampje = open of dicht
+	DDRD |= _BV(DDD7);  // Rood lampje = ingerold 
 	
 }
 
@@ -278,8 +284,8 @@ int lampjes(void)
 {
 	if ((adc_result1 > lichtboven) && (afstand >= afstandonder))
 	{
-			PORTD |= _BV(PORTD3);
-			PORTD &= ~ _BV(PORTD5);
+			PORTD |= _BV(PORTD5);
+			PORTD &= ~ _BV(PORTD7);
 			afstand = afstand - 10;
 			USART_putstring(stringdicht);
 			USART_putstring(",\n");
@@ -288,44 +294,82 @@ int lampjes(void)
 	
 	if ((adc_result1 < lichtonder) && (afstand <= afstandboven))
 	{
-		PORTD |= _BV(PORTD5);
-		PORTD &= ~ _BV(PORTD3);
+		PORTD |= _BV(PORTD7);
+		PORTD &= ~ _BV(PORTD5);
 		afstand = afstand + 10;
 		USART_putstring(stringopen);
 		USART_putstring(",\n");
 
 	}
-	
+}
+
 	/*if ((adc_result0 > tempboven) && (afstand >= afstandonder))
 	{
-		PORTD |= _BV(PORTD3);
-		PORTD &= ~ _BV(PORTD5);
+		PORTD |= _BV(PORTD5);
+		PORTD &= ~ _BV(PORTD7);
 		afstand = afstand - 10;
 	}
 	
 	if ((adc_result0 < temponder) && (afstand <= afstandboven))
 	{
-		PORTD |= _BV(PORTD5);
-		PORTD &= ~ _BV(PORTD3);
+		PORTD |= _BV(PORTD7);
+		PORTD &= ~ _BV(PORTD5);
 		afstand = afstand + 10;
-	}*/
-}
+		}*/
+		
+
 
 int knipperen(){
 	if	((afstand > afstandonder) && (afstand < afstandboven)){
-		PORTD |= _BV(PORTD4);
+		PORTD |= _BV(PORTD6);
 		_delay_ms(200);
-		PORTD &= ~ _BV(PORTD4);
+		PORTD &= ~ _BV(PORTD6);
 	}
 }
 
+// Initialization of timers
+void init_distance() {
+	EICRA |= (1 << ISC10);
+	EIMSK |= (1 << INT1);
+	TCCR0A = 0;
+	TCCR0B = (1 << CS01) | (1 << CS00);
+	TIMSK0 = (1 << TOIE0);
+	DDRD |= (1 << 4);
+}
+
+ISR (TIMER0_OVF_vect) {
+	time+= 1<<8;
+}
+int afstand_meter()
+{
+	PORTD |= (1 << 4);
+	_delay_us(15);
+	PORTD &= ~(1 << 4);
+	_delay_ms(10);
+	char buffer[10];
+	itoa(distance, buffer, 10);
+	USART_putstring(buffer);
+	USART_putstring(",\n");
+	
+	
+}
+
+
+ISR (INT1_vect){
+	if (PIND & (1 << 3)) {
+		TCNT0 = 0;
+		time = 0;
+	}
+	else {
+		time += TCNT0;
+		distance = time * (128 / 16) / 29.1;
+	}
+}
+
+
 int main() {
-	//initialisatie functies
-	/*
-	* bijvoorbeeld init_ports();
-	*
-	*/
 	init_ports();
+	init_distance();
 	uart_init();
 	
 	SCH_Init_T1();
@@ -334,6 +378,7 @@ int main() {
 	// bijvoorbeeld SCH_Add_Task(sensor_start, 0, 50);
 	// 50 * 10ms = 500ms = halve seconde
 	
+	SCH_Add_Task(afstand_meter, 0, 500);
 	SCH_Add_Task(lampjes, 0, 100);
 	SCH_Add_Task(temperatuursensor, 0, 1000);
 	SCH_Add_Task(lichtsensor, 0, 1100);
