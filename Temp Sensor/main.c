@@ -1,14 +1,32 @@
 /*
- * GccApplication1.c
+ * main.c
  *
- * Created: 11/10/2017 2:50:03 PM
- * Author : Antonie
+ * Created: 11/10/2017 2:50:03 AM
+ * Author : ICT-MAX
+ *
  */ 
+
+
+/* 
+ * HC-SR04
+ * trigger to sensor : uno 0 (PD0) output
+ * echo from sensor  : uno 3 (PD3 = INT1) input
+ * 
+ * DIO : uno 8  (PB0) data
+ * CLK : uno 9  (PB1) clock
+ * STB : uno 10 (PB2) strobe
+ *
+ * uno 3/4/5 leds groen/geel/rood
+ * 
+ * uno A0 = Temp
+ * uno A1 = Light
+ *
+ */
 
 // All includes
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#define F_CPU 16E6
+#define F_CPU 16000000UL
 #include <util/delay.h>
 #include <avr/sfr_defs.h>
 #include "distance.h"
@@ -16,25 +34,31 @@
 
 //Defines
 #define UBBRVAL 51
-int adc_result0 = 0;
-int adc_result1 = 0;
-//int max_temp = 1200;
+#define BAUDRATE 19200
+#define BAUD_PRESCALLER (((F_CPU / (BAUDRATE * 16UL))) - 1)
+
+// Aanmaken van vaste variabelen
 char String[]="T,";
 char String2[]="L,";
+char stringopen[]="O";
+char stringdicht[]="C";
+int lichtboven = 200;
+int lichtonder = 100;
+int afstandboven = 160;
+int afstandonder = 5;
+int tempboven = 20;
+int temponder = 10;
+
+// aanmaken van variabelen die nodig zijn voor functies
+int adc_result0 = 0;
+int adc_result1 = 0;
+int celcius = 0;
+volatile int afstand = 160;
+int status = 0;
 
 // Start of scheduler code
 // The array of tasks
 sTask SCH_tasks_G[SCH_MAX_TASKS];
-
-/*------------------------------------------------------------------*-
-
-  SCH_Dispatch_Tasks()
-
-  This is the 'dispatcher' function.  When a task (function)
-  is due to run, SCH_Dispatch_Tasks() will run it.
-  This function must be called (repeatedly) from the main loop.
-
--*------------------------------------------------------------------*/
 
 void SCH_Dispatch_Tasks(void)
 {
@@ -57,52 +81,6 @@ void SCH_Dispatch_Tasks(void)
       }
    }
 }
-
-/*------------------------------------------------------------------*-
-
-  SCH_Add_Task()
-
-  Causes a task (function) to be executed at regular intervals 
-  or after a user-defined delay
-
-  pFunction - The name of the function which is to be scheduled.
-              NOTE: All scheduled functions must be 'void, void' -
-              that is, they must take no parameters, and have 
-              a void return type. 
-                   
-  DELAY     - The interval (TICKS) before the task is first executed
-
-  PERIOD    - If 'PERIOD' is 0, the function is only called once,
-              at the time determined by 'DELAY'.  If PERIOD is non-zero,
-              then the function is called repeatedly at an interval
-              determined by the value of PERIOD (see below for examples
-              which should help clarify this).
-
-
-  RETURN VALUE:  
-
-  Returns the position in the task array at which the task has been 
-  added.  If the return value is SCH_MAX_TASKS then the task could 
-  not be added to the array (there was insufficient space).  If the
-  return value is < SCH_MAX_TASKS, then the task was added 
-  successfully.  
-
-  Note: this return value may be required, if a task is
-  to be subsequently deleted - see SCH_Delete_Task().
-
-  EXAMPLES:
-
-  Task_ID = SCH_Add_Task(Do_X,1000,0);
-  Causes the function Do_X() to be executed once after 1000 sch ticks.            
-
-  Task_ID = SCH_Add_Task(Do_X,0,1000);
-  Causes the function Do_X() to be executed regularly, every 1000 sch ticks.            
-
-  Task_ID = SCH_Add_Task(Do_X,300,1000);
-  Causes the function Do_X() to be executed regularly, every 1000 ticks.
-  Task will be first executed at T = 300 ticks, then 1300, 2300, etc.            
- 
--*------------------------------------------------------------------*/
 
 unsigned char SCH_Add_Task(void (*pFunction)(), const unsigned int DELAY, const unsigned int PERIOD)
 {
@@ -131,20 +109,6 @@ unsigned char SCH_Add_Task(void (*pFunction)(), const unsigned int DELAY, const 
    return Index;
 }
 
-/*------------------------------------------------------------------*-
-
-  SCH_Delete_Task()
-
-  Removes a task from the scheduler.  Note that this does
-  *not* delete the associated function from memory: 
-  it simply means that it is no longer called by the scheduler. 
- 
-  TASK_INDEX - The task index.  Provided by SCH_Add_Task(). 
-
-  RETURN VALUE:  RETURN_ERROR or RETURN_NORMAL
-
--*------------------------------------------------------------------*/
-
 unsigned char SCH_Delete_Task(const unsigned char TASK_INDEX)
 {
    // Return_code can be used for error reporting, NOT USED HERE THOUGH!
@@ -157,16 +121,6 @@ unsigned char SCH_Delete_Task(const unsigned char TASK_INDEX)
 
    return Return_code;
 }
-
-/*------------------------------------------------------------------*-
-
-  SCH_Init_T1()
-
-  Scheduler initialisation function.  Prepares scheduler
-  data structures and sets up timer interrupts at required rate.
-  You must call this function before using the scheduler.  
-
--*------------------------------------------------------------------*/
 
 void SCH_Init_T1(void)
 {
@@ -186,32 +140,10 @@ void SCH_Init_T1(void)
    TIMSK1 = 1 << OCIE1A;   		     // Timer 1 Output Compare A Match Interrupt Enable
 }
 
-/*------------------------------------------------------------------*-
-
-  SCH_Start()
-
-  Starts the scheduler, by enabling interrupts.
-
-  NOTE: Usually called after all regular tasks are added,
-  to keep the tasks synchronised.
-
-  NOTE: ONLY THE SCHEDULER INTERRUPT SHOULD BE ENABLED!!! 
- 
--*------------------------------------------------------------------*/
-
 void SCH_Start(void)
 {
       sei();
 }
-
-/*------------------------------------------------------------------*-
-
-  SCH_Update
-
-  This is the scheduler ISR.  It is called at a rate 
-  determined by the timer settings in SCH_Init_T1().
-
--*------------------------------------------------------------------*/
 
 ISR(TIMER1_COMPA_vect)
 {
@@ -244,7 +176,18 @@ ISR(TIMER1_COMPA_vect)
 
 // _______________Eind van scheduler code______________________
 
+
 //__________________Begin van initialisatie code_________________
+
+// Port initialization
+void init_ports(void)
+{
+	// poorten voor lampjes
+	DDRD |= _BV(DDD3);	// Groen lampje = uitgerold
+	DDRD |= _BV(DDD4);	// Geel lampje = open of dicht
+	DDRD |= _BV(DDD5);	// Rood lampje = ingerold
+	
+}
 
 //initialisatie van ADC voor temp sensor
 void init_adc_temp()
@@ -271,29 +214,30 @@ uint8_t get_adc_value()
 	return ADCH; // 8-bit resolution, left adjusted
 }
 
+
 //______________________________Start van code voor Serial_____________________________
 
 //initialisatie van uart
-void uart_init()
+void uart_init(void)
 {
-	// set the baud rate
-	UBRR0H = 0;
-	UBRR0L = UBBRVAL;
-	// disable U2X mode
-	UCSR0A = 0;
-	// enable transmitter
-	UCSR0B = _BV(TXEN0) | _BV(RXEN0);
-	// set frame format : asynchronous, 8 data bits, 1 stop bit, no parity
-	UCSR0C = _BV(UCSZ01) | _BV(UCSZ00);
+ UBRR0H = (uint8_t)(BAUD_PRESCALLER>>8);
+ UBRR0L = (uint8_t)(BAUD_PRESCALLER);
+ UCSR0B = (1<<RXEN0)|(1<<TXEN0);
+ UCSR0C = (3<<UCSZ00);
+}
+
+// Functie voor het ontvangen van data
+unsigned char USART_receive(void){
+	
+while((UCSR0A &(1<<RXC0)) == 0);
+return UDR0;
+	
 }
 
 //Functie voor het versturen van data
-void transmit(uint8_t data)
+void transmit(unsigned char data)
 {
-	// wait for an empty transmit buffer
-	// UDRE is set when the transmit buffer is empty
-	loop_until_bit_is_set(UCSR0A, UDRE0);
-	// send the data
+	while(!(UCSR0A & (1<<UDRE0)));
 	UDR0 = data;
 }
 //functie voor het verturen van een string
@@ -305,14 +249,6 @@ void USART_putstring(char* StringPtr){
 	
 }
 
-// Functie voor het ontvangen van data
-unsigned char USART_receive(void){
-	
-	while(!(UCSR0A & (1<<RXC0)));
-	return UDR0;
-	
-}
-
 // MAIN! functie van temperatuursensor
 int temperatuursensor(void){
 		init_adc_temp();
@@ -321,10 +257,11 @@ int temperatuursensor(void){
 		//convert int to string
 		adc_result0 = get_adc_value();
 		int mv = (adc_result0/1024.0)*5000;
-		int celcius = mv/10;
+		celcius = mv/10;
 		char buffer[10];
 		itoa(celcius, buffer, 10);
 		USART_putstring(buffer);
+		USART_putstring(",\n");
 }
 
 // MAIN! functie van lichtsensor
@@ -333,10 +270,56 @@ int lichtsensor(void){
 		USART_putstring(String2);
 		
 		//convert int to string
-		adc_result1 = get_adc_value() * 10;
+		adc_result1 = get_adc_value();
 		char buffer[10];
 		itoa(adc_result1, buffer, 10);
 		USART_putstring(buffer);
+		USART_putstring(",\n");
+}
+
+int lampjes(void)
+{
+	if ((adc_result1 > lichtboven) && (afstand >= afstandonder))
+	{
+			PORTD |= _BV(PORTD3);
+			PORTD &= ~ _BV(PORTD5);
+			afstand = afstand - 10;
+			USART_putstring(stringdicht);
+			USART_putstring(",\n");
+			
+	}
+	
+	if ((adc_result1 < lichtonder) && (afstand <= afstandboven))
+	{
+		PORTD |= _BV(PORTD5);
+		PORTD &= ~ _BV(PORTD3);
+		afstand = afstand + 10;
+		USART_putstring(stringopen);
+		USART_putstring(",\n");
+
+	}
+	
+	/*if ((adc_result0 > tempboven) && (afstand >= afstandonder))
+	{
+		PORTD |= _BV(PORTD3);
+		PORTD &= ~ _BV(PORTD5);
+		afstand = afstand - 10;
+	}
+	
+	if ((adc_result0 < temponder) && (afstand <= afstandboven))
+	{
+		PORTD |= _BV(PORTD5);
+		PORTD &= ~ _BV(PORTD3);
+		afstand = afstand + 10;
+	}*/
+}
+
+int knipperen(){
+	if	((afstand > afstandonder) && (afstand < afstandboven)){
+		PORTD |= _BV(PORTD4);
+		_delay_ms(200);
+		PORTD &= ~ _BV(PORTD4);
+	}
 }
 
 int main() {
@@ -345,6 +328,7 @@ int main() {
 	* bijvoorbeeld init_ports();
 	*
 	*/
+	init_ports();
 	uart_init();
 	
 	SCH_Init_T1();
@@ -353,8 +337,10 @@ int main() {
 	// bijvoorbeeld SCH_Add_Task(sensor_start, 0, 50);
 	// 50 * 10ms = 500ms = halve seconde
 	
-	SCH_Add_Task(temperatuursensor, 0, 3000);
-	SCH_Add_Task(lichtsensor, 0, 4000);
+	SCH_Add_Task(lampjes, 0, 100);
+	SCH_Add_Task(temperatuursensor, 0, 1000);
+	SCH_Add_Task(lichtsensor, 0, 1100);
+	SCH_Add_Task(knipperen, 0, 50);
 	
 	//start de scheduler
 	SCH_Start();
@@ -367,3 +353,5 @@ int main() {
 	}
 	return 0;
 }
+
+
