@@ -37,6 +37,8 @@
 // Aanmaken van vaste variabelen
 char String[]="T,";
 char String2[]="L,";
+char stringdist[] = "D,";
+char cm[] = "cm" ;
 char stringopen[]="O";
 char stringdicht[]="C";
 int lichtboven = 200;
@@ -182,10 +184,9 @@ ISR(TIMER1_COMPA_vect)
 // Port initialization
 void init_ports(void)
 {
-	// poorten voor lampjes
 	
-	DDRD |= _BV(DDD3);	
 	DDRD |= _BV(DDD4);	
+	// poorten voor lampjes
 	DDRD |= _BV(DDD5);	// Groen lampje = uitgerold
 	DDRD |= _BV(DDD6);	// Geel lampje = open of dicht
 	DDRD |= _BV(DDD7);  // Rood lampje = ingerold 
@@ -340,30 +341,21 @@ void init_distance() {
 ISR (TIMER0_OVF_vect) {
 	time+= 1<<8;
 }
-int afstand_meter()
-{
-	PORTD |= (1 << 4);
-	_delay_us(15);
-	PORTD &= ~(1 << 4);
-	_delay_ms(10);
-	char buffer[10];
-	itoa(distance, buffer, 10);
-	USART_putstring(buffer);
-	USART_putstring(",\n");
-	
-	
-}
 
-
-ISR (INT1_vect){
+ISR (INT1_vect) {
 	if (PIND & (1 << 3)) {
 		TCNT0 = 0;
 		time = 0;
-	}
-	else {
+		} else {
 		time += TCNT0;
-		distance = time * (128 / 16) / 29.1;
+		distance = time * (64 / 16) / 58.2;
 	}
+}
+
+int afstand_meter(){
+	PORTD |= (1 << 4);
+	_delay_us(12);
+	PORTD &= ~(1 << 4);
 }
 
 
@@ -378,11 +370,12 @@ int main() {
 	// bijvoorbeeld SCH_Add_Task(sensor_start, 0, 50);
 	// 50 * 10ms = 500ms = halve seconde
 	
-	SCH_Add_Task(afstand_meter, 0, 500);
+	
 	SCH_Add_Task(lampjes, 0, 100);
-	SCH_Add_Task(temperatuursensor, 0, 1000);
-	SCH_Add_Task(lichtsensor, 0, 1100);
+	SCH_Add_Task(temperatuursensor, 0, 1800);
+	SCH_Add_Task(lichtsensor, 0, 2100);
 	SCH_Add_Task(knipperen, 0, 50);
+	SCH_Add_Task(afstand_meter, 0, 500);
 	
 	//start de scheduler
 	SCH_Start();
