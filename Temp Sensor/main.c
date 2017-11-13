@@ -1,8 +1,8 @@
 /*
  * GccApplication1.c
  *
- * Created: 11/10/2017 2:50:03 PM
- * Author : Antonie
+ * Created: 11/10/2017 2:50:03 AM
+ * Author : ICT-MAX
  */ 
 
 // All includes
@@ -29,7 +29,18 @@ int adc_result1 = 0;
 //int max_temp = 1200;
 char String[]="T,";
 char String2[]="L,";
-int lichtboven = 240;
+int lichtboven = 200;
+int lichtonder = 100;
+int afstandboven = 160;
+int afstandonder = 5;
+int tempboven = 20;
+int temponder = 10;
+
+
+
+int celcius = 0;
+volatile int afstand = 160;
+int status = 0;
 
 // Start of scheduler code
 // The array of tasks
@@ -157,9 +168,12 @@ ISR(TIMER1_COMPA_vect)
 // Port initialization
 void init_ports(void)
 {
-	DDRD |= _BV(DDD2);
+	// poorten voor lampjes
+	DDRD |= _BV(DDD3);	// Groen lampje = uitgerold
+	DDRD |= _BV(DDD4);	// Geel lampje = open of dicht
+	DDRD |= _BV(DDD5);	// Rood lampje = ingerold
+	
 }
-
 
 //initialisatie van ADC voor temp sensor
 void init_adc_temp()
@@ -229,7 +243,7 @@ int temperatuursensor(void){
 		//convert int to string
 		adc_result0 = get_adc_value();
 		int mv = (adc_result0/1024.0)*5000;
-		int celcius = mv/10;
+		celcius = mv/10;
 		char buffer[10];
 		itoa(celcius, buffer, 10);
 		USART_putstring(buffer);
@@ -249,34 +263,50 @@ int lichtsensor(void){
 		USART_putstring(",\n");
 }
 
-void waarde_veranderen()
+int lampjes(void)
 {
-	unsigned char datalol = USART_receive();
-	//if (data == 0)
-	//{
-		
-	//}
-	//else{
-		
+
 	
-		//switch(data){
-			//case 1:
-			
-	
-	char* p = strtok(datalol, "");
-	printf(p);
-	
-	while (datalol == 12)
-		{
-				char buffer[10];
-				lichtboven = 18;
-				itoa(lichtboven, buffer, 10);
-				USART_putstring(buffer);
-				break;
-		}			
-	while (datalol != 12)
+	if ((adc_result1 > lichtboven) && (afstand >= afstandonder))
 	{
-		break;
+			PORTD |= _BV(PORTD3);
+			PORTD &= ~ _BV(PORTD5);
+			afstand = afstand - 10;
+				char buffer[10];
+				itoa(afstand, buffer, 10);
+				USART_putstring(buffer);
+	}
+	
+	if ((adc_result1 < lichtonder) && (afstand <= afstandboven))
+	{
+		PORTD |= _BV(PORTD5);
+		PORTD &= ~ _BV(PORTD3);
+		afstand = afstand + 10;
+			char buffer[10];
+			itoa(afstand, buffer, 10);
+			USART_putstring(buffer);
+	}
+	
+	if ((adc_result0 > tempboven) && (afstand >= afstandonder))
+	{
+		PORTD |= _BV(PORTD3);
+		PORTD &= ~ _BV(PORTD5);
+		afstand = afstand - 10;
+	}
+	
+	if ((adc_result0 < temponder) && (afstand <= afstandboven))
+	{
+		PORTD |= _BV(PORTD5);
+		PORTD &= ~ _BV(PORTD3);
+		afstand = afstand + 10;
+	}
+}
+
+int knipperen(){
+	if	((afstand > afstandonder) && (afstand < afstandboven)){
+		PORTD |= _BV(PORTD4);
+		_delay_ms(200);
+		PORTD &= ~ _BV(PORTD4);
 	}
 }
 
@@ -286,7 +316,6 @@ int main() {
 	* bijvoorbeeld init_ports();
 	*
 	*/
-	
 	init_ports();
 	uart_init();
 	
@@ -296,9 +325,10 @@ int main() {
 	// bijvoorbeeld SCH_Add_Task(sensor_start, 0, 50);
 	// 50 * 10ms = 500ms = halve seconde
 	
-	SCH_Add_Task(temperatuursensor, 0, 300);
-	SCH_Add_Task(lichtsensor, 0, 400);
-	SCH_Add_Task(waarde_veranderen, 0, 1);
+	SCH_Add_Task(lampjes, 0, 100);
+	SCH_Add_Task(temperatuursensor, 0, 1000);
+	SCH_Add_Task(lichtsensor, 0, 1100);
+	SCH_Add_Task(knipperen, 0, 50);
 	
 	//start de scheduler
 	SCH_Start();
@@ -311,3 +341,5 @@ int main() {
 	}
 	return 0;
 }
+
+
