@@ -759,7 +759,7 @@ ISR (INT1_vect) {
  560:	18 95       	reti
 
 00000562 <main>:
-	PORTD &= ~(1 << 4);
+	//USART_putstring(",\n");
 }
 
 

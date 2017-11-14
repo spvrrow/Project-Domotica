@@ -356,6 +356,14 @@ int afstand_meter(){
 	PORTD |= (1 << 4);
 	_delay_us(12);
 	PORTD &= ~(1 << 4);
+	
+	//code voor testen afstandsmeter in serial
+	
+	//USART_putstring(stringdist);
+	//char buffer[10];
+	//itoa(distance, buffer, 10);
+	//USART_putstring(buffer);
+	//USART_putstring(",\n");
 }
 
 
